@@ -11,23 +11,8 @@ on:
   #   - cron: "0 0 * * *"
 
 jobs:
-  setup-matrix:
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      - id: set-matrix
-        run: |
-          count=${{ github.event.inputs.parallelism || 1 }}
-          matrix=$(seq -s ',' 1 $count)
-          echo "matrix=$(jq -cn --argjson groups "[$matrix]" '{group: $groups}')" >> $GITHUB_OUTPUT
-
   test:
-    needs: setup-matrix
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -67,7 +52,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4.6.0
         with:
-          name: test-results-${{ matrix.group }}
+          name: test-results
           path: |
             test-results/
             allure-results
