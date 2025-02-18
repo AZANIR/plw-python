@@ -63,13 +63,3 @@ def handle_artifacts(page: Page, request):
 #     pytest.testomatio.add_artifacts([artifact_url])
     
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-@pytest.fixture(autouse=True)
-def allure_environment_info(request):
-    """Add environment info to allure report"""
-    allure.environment(
-        python_version=platform.python_version(),
-        platform=platform.system(),
-        browser="Chrome",  # або динамічно отримуйте з конфігурації
-        test_framework=f"pytest {pytest.__version__}"
-    ) 

@@ -1,8 +1,12 @@
 name: Pre merge test
 
 on:
+  push:
+    branches:
+      - master
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
   # schedule:
   #   - cron: "0 0 * * *"
 
