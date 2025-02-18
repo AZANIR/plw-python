@@ -45,7 +45,7 @@ jobs:
           xvfb-run env TESTOMATIO_PRIVATE_ARTIFACTS=1 \
             TESTOMATIO_URL=${{ secrets.TESTOMATIO_URL }} \
             TESTOMATIO=${{ secrets.TESTOMATIO }} \
-            TESTOMATIO_ENV=${{ secrets.TESTOMATIO_ENV }} \
+            TESTOMATIO_ENV="${{ secrets.TESTOMATIO_ENV }}" \
             pytest --testomatio report
 
       - name: Upload test results and artifacts
