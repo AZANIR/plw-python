@@ -11,13 +11,25 @@ on:
   #   - cron: "0 0 * * *"
 
 jobs:
-  merge_test:
-    timeout-minutes: 15
+  setup-matrix:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - id: set-matrix
+        run: |
+          count=${{ github.event.inputs.parallelism || 2 }}
+          matrix=$(seq -s ',' 1 $count)
+          echo "matrix=$(jq -cn --argjson groups "[$matrix]" '{group: $groups}')" >> $GITHUB_OUTPUT
+
+  nightly-test:
+    needs: setup-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
-      - uses: psf/black@stable
-      - uses: isort/isort-action@v1
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -29,45 +41,36 @@ jobs:
           virtualenvs-in-project: true
           installer-parallel: true
           virtualenvs-path: .venv
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
       - name: Install Dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction --no-root
       - name: Install Playwright Browsers
         run: |
           PLAYWRIGHT_VERSION=$(grep -E '^playwright = "[^"]*"' pyproject.toml | sed -E 's/playwright = "([^"]*)".*$/\1/')
           npx playwright@$PLAYWRIGHT_VERSION install --with-deps
-      - name: Test with pytest
+      - name: Run Tests
         run: |
           source .venv/bin/activate
-          xvfb-run pytest -m devRun --base-url ${{ vars.BASE_URL }}
-      - name: Cache dependencies if tests pass
-        if: success()
-        uses: actions/cache/save@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-      - name: Store Playwright Traces and Videos From Failed Tests
-        if: failure()
-        uses: actions/upload-artifact@v4.6.0
-        id: artifact-upload-step
-        with:
-          name: test-results
-          path: test-results/
-          retention-days: 7
-      - name: Link Playwright Traces And Videos To Allure Report
-        working-directory: allure-results
-        if: failure()
-        run: echo ARTIFACT_URL=${{ steps.artifact-upload-step.outputs.artifact-url }} >> environment.properties
-      - name: Link Git Information And Browser Version To Allure Report
-        working-directory: allure-results
+          xvfb-run TESTOMATIO_PRIVATE_ARTIFACTS=1 TESTOMATIO_URL=$TESTOMATIO_URL TESTOMATIO=$TESTOMATIO TESTOMATIO_ENV=$TESTOMATIO_ENV pytest --testomatio report
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          TESTOMATIO: ${{ secrets.TESTOMATIO }}
+          TESTOMATIO_RUN: ${{ github.event.inputs.run }}
+          TESTOMATIO_URL: ${{ secrets.TESTOMATIO_URL }} 
+      - name: Upload test results and artifacts
         if: always()
-        run: |
-          {
-           echo BUILD_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-           echo GIT_BRANCH=${{ github.head_ref || github.ref_name }}
-           echo GIT_COMMIT_ID=${{ github.sha }}
-           echo GIT_COMMIT_MESSAGE=$(git show -s --format=%s HEAD)
-           echo GIT_COMMIT_AUTHOR_NAME=$(git show -s --format='%ae' HEAD)
-           echo GIT_COMMIT_TIME=$(git show -s --format=%ci HEAD)
-           echo CHROME_VERSION=$(google-chrome --product-version)
-          } >> environment.properties
+        uses: actions/upload-artifact@v4.6.0
+        with:
+          name: test-results-${{ matrix.group }}
+          path: |
+            test-results/
+            allure-results
+          retention-days: 7
+
 
