@@ -12,12 +12,9 @@ on:
 
 jobs:
   test:
-    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: psf/black@stable
-      - uses: isort/isort-action@v1
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -29,7 +26,14 @@ jobs:
           virtualenvs-in-project: true
           installer-parallel: true
           virtualenvs-path: .venv
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
       - name: Install Dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction --no-root
       - name: Install Playwright Browsers
         run: |
@@ -43,15 +47,3 @@ jobs:
             TESTOMATIO=${{ secrets.TESTOMATIO }} \
             TESTOMATIO_ENV="${{ secrets.TESTOMATIO_ENV }}" \
             pytest --testomatio report
-
-      - name: Upload test results and artifacts
-        if: always()
-        uses: actions/upload-artifact@v4.6.0
-        with:
-          name: test-results
-          path: |
-            test-results/
-            allure-results
-          retention-days: 7
-
-
