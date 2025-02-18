@@ -18,11 +18,11 @@ jobs:
     steps:
       - id: set-matrix
         run: |
-          count=${{ github.event.inputs.parallelism || 2 }}
+          count=${{ github.event.inputs.parallelism || 1 }}
           matrix=$(seq -s ',' 1 $count)
           echo "matrix=$(jq -cn --argjson groups "[$matrix]" '{group: $groups}')" >> $GITHUB_OUTPUT
 
-  nightly-test:
+  test:
     needs: setup-matrix
     runs-on: ubuntu-latest
     strategy:
