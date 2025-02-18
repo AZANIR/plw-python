@@ -57,12 +57,8 @@ jobs:
       - name: Run Tests
         run: |
           source .venv/bin/activate
-          xvfb-run TESTOMATIO_PRIVATE_ARTIFACTS=1 TESTOMATIO_URL=$TESTOMATIO_URL TESTOMATIO=$TESTOMATIO TESTOMATIO_ENV=$TESTOMATIO_ENV pytest --testomatio report
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-          TESTOMATIO: ${{ secrets.TESTOMATIO }}
-          TESTOMATIO_RUN: ${{ github.event.inputs.run }}
-          TESTOMATIO_URL: ${{ secrets.TESTOMATIO_URL }} 
+          xvfb-run TESTOMATIO_PRIVATE_ARTIFACTS=1 TESTOMATIO_URL=${{ secrets.TESTOMATIO_URL }} TESTOMATIO=${{ secrets.TESTOMATIO }} TESTOMATIO_ENV=${{secrets.TESTOMATIO_ENV }} pytest --testomatio report
+
       - name: Upload test results and artifacts
         if: always()
         uses: actions/upload-artifact@v4.6.0
